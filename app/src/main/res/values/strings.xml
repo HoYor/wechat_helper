@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">微信助手</string>
+    <string name="desc">手机未设置密码的情况下，锁屏状态接受到消息才能自动回复</string>
+</resources>
