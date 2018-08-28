@@ -10,11 +10,19 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.support.v7.widget.SwitchCompat;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -25,8 +33,12 @@ public class RobotService extends AccessibilityService {
 
     private final String TAG = "RobotService";
     private boolean isFromNotification = false;
-    public static String mSendMsg = "你好，我现在正忙，有急事可以打我电话【自动回复】";
-    public static String mNotifyContent = "";
+    public static String mOtherContent = "";
+    public static String[] mFilterKeywords = {};
+    public static boolean isOtherOpen = true;
+    public static boolean isPrimaryOpen = true;
+    public static List<Reply> mReplyList = new ArrayList<>();
+    private String mSendMsg = "";
     private boolean isScreenOn = true;
     private AccessibilityNodeInfo nodeInfo;
 //    private DevicePolicyManager policyManager;
@@ -37,11 +49,24 @@ public class RobotService extends AccessibilityService {
     @Override
     public void onCreate() {
         super.onCreate();
+        initData();
         keyguardManager = (KeyguardManager) RobotService.this.getApplicationContext()
                 .getSystemService(KEYGUARD_SERVICE);
         pm = (PowerManager) RobotService.this.getApplicationContext()
                 .getSystemService(Context.POWER_SERVICE);
         componentName = new ComponentName(this, LockReceiver.class);
+    }
+
+    private void initData() {
+        mOtherContent = SpUtils.getString(Constants.SP_OTHER_CONTENT,"");
+        isOtherOpen = SpUtils.getBoolean(Constants.SP_OTHER_ISOPEN,true);
+        isPrimaryOpen = SpUtils.getBoolean(Constants.SP_PRIMARY_SWITCHER,true);
+        String replyListStr = SpUtils.getString(Constants.SP_REPLY_LIST,"");
+        if(!replyListStr.equals("")){
+            mReplyList = new Gson().fromJson(replyListStr,new TypeToken<List<Reply>>(){}
+                    .getType());
+        }
+        mFilterKeywords = SpUtils.getString(Constants.SP_FILTER_KEYWORDS,"").split(",");
     }
 
     @Override
@@ -51,7 +76,7 @@ public class RobotService extends AccessibilityService {
         switch (eventType){
             case AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED:
                 Log.d(TAG, "onAccessibilityEvent: TYPE_NOTIFICATION_STATE_CHANGED");
-                isFromNotification = true;
+                if(!isPrimaryOpen)return;
                 handleNotification(accessibilityEvent);
                 break;
             case AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED:
@@ -148,19 +173,50 @@ public class RobotService extends AccessibilityService {
             for (CharSequence text : texts) {
                 String content = text.toString();
                 //检查信息
-                if (content.contains(mNotifyContent)) {
-                    if (event.getParcelableData() != null && event.getParcelableData() instanceof Notification) {
-                        Notification notification = (Notification) event.getParcelableData();
-                        PendingIntent pendingIntent = notification.contentIntent;
-                        try {
-                            pendingIntent.send();
-                        } catch (PendingIntent.CanceledException e) {
-                            e.printStackTrace();
-                        }
+                if(isContainsFilterKeyword(content)){
+                    return;
+                }
+                if(!isContainsReplyKeyword(content)){
+                    if(isOtherOpen){
+                        mSendMsg = mOtherContent;
+                    }else{
+                        continue;
+                    }
+                }
+                if (event.getParcelableData() != null && event.getParcelableData() instanceof Notification) {
+                    Notification notification = (Notification) event.getParcelableData();
+                    PendingIntent pendingIntent = notification.contentIntent;
+                    try {
+                        isFromNotification = true;
+                        pendingIntent.send();
+                        break;
+                    } catch (PendingIntent.CanceledException e) {
+                        e.printStackTrace();
                     }
                 }
             }
         }
+    }
+
+    private boolean isContainsReplyKeyword(String content) {
+        for (Reply reply:mReplyList) {
+            if(reply.isOpen()){
+                if(content.contains(reply.getKeyword())){
+                    mSendMsg = reply.getContent();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isContainsFilterKeyword(String content) {
+        for (String keyword:mFilterKeywords) {
+            if(content.contains(keyword)){
+                return true;
+            }
+        }
+        return false;
     }
 
     public void dfsnode(AccessibilityNodeInfo node , int num){

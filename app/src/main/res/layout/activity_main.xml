@@ -1,64 +1,158 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="50dp"
     tools:context="com.fuyun.accessibility.MainActivity">
-
     <LinearLayout
-        android:id="@+id/device_admin"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintTop_toTopOf="parent"
-        android:layout_marginTop="20dp">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="你还没有获取设备管理权限，无法自动锁屏，请先去激活权限!!!"
-            android:textColor="@android:color/holo_red_dark"/>
-        <Button
-            android:id="@+id/active"
+        android:background="@color/bg">
+
+        <LinearLayout
+            android:id="@+id/device_admin"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="去激活"/>
-    </LinearLayout>
-    <EditText
-        android:id="@+id/keyword"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:maxLines="1"
-        android:padding="10dp"
-        android:textSize="16sp"
-        android:textColor="#242424"
-        android:hint="通知内容包含的关键字"
-        app:layout_constraintTop_toBottomOf="@id/device_admin"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="20dp"
-        app:layout_goneMarginTop="50dp"/>
-    <EditText
-        android:id="@+id/content"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="10dp"
-        android:textSize="16sp"
-        android:textColor="#242424"
-        android:hint="自动回复的文字"
-        app:layout_constraintTop_toBottomOf="@id/keyword"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="10dp"/>
-    <Button
-        android:id="@+id/confirm"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="确定"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/content"
-        android:layout_marginTop="20dp"/>
+            android:orientation="vertical"
+            android:layout_marginTop="20dp"
+            android:padding="16dp"
+            android:background="@color/white">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="你还没有获取设备管理权限，无法自动锁屏，请先去激活权限!!!"
+                android:textColor="@android:color/holo_red_dark"/>
+            <Button
+                android:id="@+id/active"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="去激活"/>
+        </LinearLayout>
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/white"
+            android:padding="16dp"
+            android:layout_marginTop="20dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="总开关"
+                android:textSize="16sp"
+                android:textColor="#2e2e2e"
+                android:textStyle="bold"
+                android:layout_centerVertical="true"/>
+            <android.support.v7.widget.SwitchCompat
+                android:id="@+id/primarySwitch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true" />
+        </RelativeLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@color/white"
+            android:layout_marginTop="10dp">
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="16dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="回复策略："
+                    android:textSize="16sp"
+                    android:textColor="#252525"
+                    android:layout_centerVertical="true"/>
+                <Button
+                    android:id="@+id/add"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="添加"
+                    android:layout_centerVertical="true"
+                    android:layout_alignParentEnd="true"/>
+            </RelativeLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:id="@+id/items"/>
+        </LinearLayout>
+        <android.support.constraint.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/white"
+            android:padding="16dp"
+            android:layout_marginTop="10dp">
+            <TextView
+                android:id="@+id/other_keyword"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="其它统一回复："
+                android:textSize="16sp"
+                android:textColor="#252525"/>
+            <EditText
+                android:id="@+id/other_reply"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="#2e2e2e"
+                android:hint="统一回复文字"
+                app:layout_constraintTop_toBottomOf="@id/other_keyword"
+                android:layout_marginTop="10dp"
+                android:padding="10dp"
+                android:background="@color/bg"/>
+            <android.support.v7.widget.SwitchCompat
+                android:id="@+id/other_switchBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/other_keyword"
+                app:layout_constraintBottom_toBottomOf="@id/other_keyword" />
+            <Button
+                android:id="@+id/other_confirm"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="确定"
+                android:layout_marginTop="10dp"
+                app:layout_constraintTop_toBottomOf="@id/other_reply"/>
+        </android.support.constraint.ConstraintLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@color/white"
+            android:layout_marginTop="10dp"
+            android:padding="16dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="过滤关键字(多个关键字,用英文逗号隔开)"
+                android:textSize="16sp"
+                android:textColor="#252525"/>
+            <EditText
+                android:id="@+id/filter_keywords"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="#2e2e2e"
+                android:hint="过滤关键字"
+                android:layout_marginTop="10dp"
+                android:padding="10dp"
+                android:background="@color/bg"/>
+            <Button
+                android:id="@+id/filter_confirm"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="确定"
+                android:layout_marginTop="10dp" />
+        </LinearLayout>
 
-</android.support.constraint.ConstraintLayout>
+    </LinearLayout>
+</ScrollView>

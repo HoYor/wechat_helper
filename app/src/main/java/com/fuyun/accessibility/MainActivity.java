@@ -6,19 +6,31 @@ import android.content.Context;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.SwitchCompat;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
+
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    private EditText mKeyword,mContent;
-    private Button mConfirm;
+    private EditText mOtherContent,mFilterContent;
+    private Button mOtherConfirm,mAdd,mFilterConfirm;
     private LinearLayout mDeviceAdmin;
     private ComponentName componentName;
     private DevicePolicyManager policyManager;
+    private SwitchCompat mOtherSwitch,mPrimarySwitch;
+    private LinearLayout mItemsLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,11 +42,14 @@ public class MainActivity extends AppCompatActivity {
 
     private void initView() {
         componentName = new ComponentName(this, LockReceiver.class);
-        mKeyword = findViewById(R.id.keyword);
-        mKeyword.setText(RobotService.mNotifyContent);
-        mContent = findViewById(R.id.content);
-        mContent.setText(RobotService.mSendMsg);
-        mConfirm = findViewById(R.id.confirm);
+        mOtherContent = findViewById(R.id.other_reply);
+        mOtherConfirm = findViewById(R.id.other_confirm);
+        mFilterContent = findViewById(R.id.filter_keywords);
+        mFilterConfirm = findViewById(R.id.filter_confirm);
+        mAdd = findViewById(R.id.add);
+        mItemsLayout = findViewById(R.id.items);
+        mOtherSwitch = findViewById(R.id.other_switchBtn);
+        mPrimarySwitch = findViewById(R.id.primarySwitch);
         mDeviceAdmin = findViewById(R.id.device_admin);
         //获取设备管理服务
         policyManager = (DevicePolicyManager) getSystemService(Context
@@ -73,24 +88,112 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initAction() {
-        mConfirm.setOnClickListener(new View.OnClickListener() {
+        mPrimarySwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                RobotService.isPrimaryOpen = mPrimarySwitch.isChecked();
+                SpUtils.putBoolean(Constants.SP_PRIMARY_SWITCHER,mPrimarySwitch.isChecked());
+            }
+        });
+        mOtherSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                RobotService.isOtherOpen = mOtherSwitch.isChecked();
+                SpUtils.putBoolean(Constants.SP_OTHER_ISOPEN,mOtherSwitch.isChecked());
+            }
+        });
+        mOtherConfirm.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if(mKeyword.getText() == null ||
-                        mKeyword.getText().toString().equals("") ||
-                        mContent.getText() == null ||
-                        mContent.getText().toString().equals("")){
+                if(mOtherContent.getText() == null ||
+                        mOtherContent.getText().toString().equals("")){
                     Toast.makeText(MainActivity.this,"内容不能为空",Toast.LENGTH_LONG).show();
                 }else{
-                    RobotService.mNotifyContent = mKeyword.getText().toString();
-                    RobotService.mSendMsg = mContent.getText().toString();
-//                    mKeyword.setHint(RobotService.mNotifyContent);
-//                    mContent.setHint(RobotService.mSendMsg);
-//                    mKeyword.setText("");
-//                    mContent.setText("");
-                    Toast.makeText(MainActivity.this,"设置成功",Toast.LENGTH_LONG).show();
+                    RobotService.mOtherContent = mOtherContent.getText().toString();
+                    SpUtils.putString(Constants.SP_OTHER_CONTENT,mOtherContent.getText().toString());
+                    Toast.makeText(MainActivity.this,"设置成功",Toast.LENGTH_SHORT).show();
                 }
             }
         });
+        mFilterConfirm.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                RobotService.mFilterKeywords = mFilterContent.getText().toString().split(",");
+                SpUtils.putString(Constants.SP_FILTER_KEYWORDS,mFilterContent.getText().toString());
+                Toast.makeText(MainActivity.this,"设置成功",Toast.LENGTH_SHORT).show();
+            }
+        });
+        mAdd.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(MainActivity.this,AddActivity.class));
+            }
+        });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        initData();
+    }
+
+    private void initData() {
+        String otherContent = SpUtils.getString(Constants.SP_OTHER_CONTENT,"");
+        if(!otherContent.equals("")){
+            mOtherContent.setText(otherContent);
+        }
+        boolean otherIsOpen = SpUtils.getBoolean(Constants.SP_OTHER_ISOPEN,true);
+        mOtherSwitch.setChecked(otherIsOpen);
+        boolean primarySwither = SpUtils.getBoolean(Constants.SP_PRIMARY_SWITCHER,true);
+        mPrimarySwitch.setChecked(primarySwither);
+        String replyListStr = SpUtils.getString(Constants.SP_REPLY_LIST,"");
+        mItemsLayout.removeAllViews();
+        if(!replyListStr.equals("")){
+            final List<Reply> replyList = new Gson().fromJson(replyListStr,new TypeToken<List<Reply>>(){}
+            .getType());
+            for (int i=0;i<replyList.size();i++) {
+                View view = LayoutInflater.from(this).inflate(R.layout.item_reply,mItemsLayout,false);
+                final Integer finalI = i;
+                final Reply reply = replyList.get(i);
+                view.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        Intent intent = new Intent(MainActivity.this,DetailActivity.class);
+                        Bundle bundle = new Bundle();
+                        bundle.putParcelable("reply",reply);
+                        bundle.putInt("index",finalI);
+                        intent.putExtras(bundle);
+                        startActivity(intent);
+                    }
+                });
+                ((TextView)view.findViewById(R.id.keyword)).setText(reply.getKeyword());
+                ((TextView)view.findViewById(R.id.reply)).setText(reply.getContent());
+                ((SwitchCompat)view.findViewById(R.id.switchBtn)).setChecked(reply.isOpen());
+                ((SwitchCompat)view.findViewById(R.id.switchBtn)).setOnCheckedChangeListener(
+                        new CompoundButton.OnCheckedChangeListener() {
+                            @Override
+                            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                                replySwitchChanged(finalI);
+                            }
+                        }
+                );
+                mItemsLayout.addView(view);
+            }
+        }
+        String filterKeyword = SpUtils.getString(Constants.SP_FILTER_KEYWORDS,"");
+        if(!filterKeyword.equals("")){
+            mFilterContent.setText(filterKeyword);
+        }
+    }
+
+    private void replySwitchChanged(Integer finalI) {
+        String replyListStr = SpUtils.getString(Constants.SP_REPLY_LIST,"");
+        final List<Reply> replyList = new Gson().fromJson(replyListStr,new TypeToken<List<Reply>>(){}
+                .getType());
+        Reply reply = replyList.get(finalI);
+        reply.setOpen(!reply.isOpen());
+        replyList.set(finalI,reply);
+        RobotService.mReplyList = replyList;
+        SpUtils.putString(Constants.SP_REPLY_LIST,new Gson().toJson(replyList));
     }
 }
