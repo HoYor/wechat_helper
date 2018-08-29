@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout mDeviceAdmin;
     private ComponentName componentName;
     private DevicePolicyManager policyManager;
-    private SwitchCompat mOtherSwitch,mPrimarySwitch;
+    private SwitchCompat mOtherSwitch,mPrimarySwitch,mRobotSwitch;
     private LinearLayout mItemsLayout;
 
     @Override
@@ -50,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
         mItemsLayout = findViewById(R.id.items);
         mOtherSwitch = findViewById(R.id.other_switchBtn);
         mPrimarySwitch = findViewById(R.id.primarySwitch);
+        mRobotSwitch = findViewById(R.id.robotSwitch);
         mDeviceAdmin = findViewById(R.id.device_admin);
         //获取设备管理服务
         policyManager = (DevicePolicyManager) getSystemService(Context
@@ -102,6 +103,13 @@ public class MainActivity extends AppCompatActivity {
                 SpUtils.putBoolean(Constants.SP_OTHER_ISOPEN,mOtherSwitch.isChecked());
             }
         });
+        mRobotSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                RobotService.isRobotOpen = mRobotSwitch.isChecked();
+                SpUtils.putBoolean(Constants.SP_ROBOT_ISOPEN,mRobotSwitch.isChecked());
+            }
+        });
         mOtherConfirm.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -144,6 +152,8 @@ public class MainActivity extends AppCompatActivity {
         }
         boolean otherIsOpen = SpUtils.getBoolean(Constants.SP_OTHER_ISOPEN,true);
         mOtherSwitch.setChecked(otherIsOpen);
+        boolean robotIsOpen = SpUtils.getBoolean(Constants.SP_ROBOT_ISOPEN,false);
+        mRobotSwitch.setChecked(robotIsOpen);
         boolean primarySwither = SpUtils.getBoolean(Constants.SP_PRIMARY_SWITCHER,true);
         mPrimarySwitch.setChecked(primarySwither);
         String replyListStr = SpUtils.getString(Constants.SP_REPLY_LIST,"");

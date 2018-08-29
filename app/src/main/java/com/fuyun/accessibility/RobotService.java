@@ -7,23 +7,35 @@ import android.app.PendingIntent;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
 import android.os.PowerManager;
-import android.support.v7.widget.SwitchCompat;
 import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
-import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
+
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * Created by yym on 2018/8/20.
@@ -32,10 +44,13 @@ import java.util.List;
 public class RobotService extends AccessibilityService {
 
     private final String TAG = "RobotService";
+    private final String ROBOT_URL = "http://openapi.tuling123.com/openapi/api/v2";
+    private final String ROBOT_KEY = "c0816e069eb4436db76e66c9888b4ac6";
     private boolean isFromNotification = false;
     public static String mOtherContent = "";
     public static String[] mFilterKeywords = {};
     public static boolean isOtherOpen = true;
+    public static boolean isRobotOpen = false;
     public static boolean isPrimaryOpen = true;
     public static List<Reply> mReplyList = new ArrayList<>();
     private String mSendMsg = "";
@@ -45,6 +60,8 @@ public class RobotService extends AccessibilityService {
     private KeyguardManager keyguardManager;
     private PowerManager pm;
     private ComponentName componentName;
+    private String mNotificationUser = "";
+    private String mNotificationContent = "";
 
     @Override
     public void onCreate() {
@@ -87,7 +104,11 @@ public class RobotService extends AccessibilityService {
                 String className = accessibilityEvent.getClassName().toString();
                 Log.d(TAG, "className: "+className);
                 if(isFromNotification){
-                    sendMsg();
+                    if(isRobotOpen){
+                        requestRobotMsg();
+                    }else {
+                        sendMsg();
+                    }
                     isFromNotification = false;
                 }
                 break;
@@ -96,6 +117,128 @@ public class RobotService extends AccessibilityService {
 //                dfsnode(getRootInActiveWindow(),0);
                 break;
         }
+    }
+
+    /**
+     * 请求机器人消息
+     */
+    private void requestRobotMsg() {
+        Observable.create(new ObservableOnSubscribe<RobotResponse>() {
+            @Override
+            public void subscribe(ObservableEmitter<RobotResponse> e) throws Exception {
+                Log.d(TAG, "subscribe-thread: "+Thread.currentThread().getName());
+                URL url = new URL(ROBOT_URL);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setConnectTimeout(1000*10);
+                RobotRequest request = new RobotRequest(ROBOT_KEY,
+                        MD5(mNotificationUser),
+                        mNotificationContent);
+                String body = new Gson().toJson(request);
+                Log.d(TAG, "subscribe-body:"+body);
+//                conn.setRequestProperty("Content-Length", String.valueOf(body.length()));
+                conn.setRequestProperty("Cache-Control", "max-age=0");
+                conn.setRequestProperty("Charset", "UTF-8");
+                conn.setRequestProperty("Content-Type","application/json; charset=UTF-8");
+                conn.setDoOutput(true);
+                conn.getOutputStream().write(body.getBytes("UTF-8"));
+                conn.getOutputStream().flush();
+                conn.getOutputStream().close();
+//                conn.setDoInput(true);
+                int code = conn.getResponseCode();
+//                Log.d(TAG, "subscribe-code:"+code);
+                if (code == 200) {
+                    InputStream inputStream = conn.getInputStream();
+                    String result = inputStream2String(inputStream);
+                    inputStream.close();
+                    Log.d(TAG, "subscribe-result:"+result);
+                    RobotResponse response = new Gson()
+                            .fromJson(result, new TypeToken<RobotResponse>(){}.getType());
+                    e.onNext(response);
+                }else{
+                    InputStream inputStream = conn.getInputStream();
+                    String result = inputStream2String(inputStream);
+                    Log.d(TAG, "subscribe-result:"+result);
+                    e.onError(new Throwable());
+                }
+                e.onComplete();
+            }
+        }).subscribeOn(Schedulers.io())
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribe(new Observer<RobotResponse>() {
+            @Override
+            public void onSubscribe(Disposable d) {
+
+            }
+
+            @Override
+            public void onNext(RobotResponse s) {
+                Log.d(TAG, "onNext: ");
+                Log.d(TAG, "onNext-thread: "+Thread.currentThread().getName());
+                if(s != null &&
+                        s.getResults() != null &&
+                        s.getResults().size()>0){
+                    for (RobotResponse.ResultsBean resultsBean:s.getResults()) {
+                        if(resultsBean.getResultType() != null &&
+                                resultsBean.getResultType().equals("text")){
+                            mSendMsg = resultsBean.getValues().getText();
+                            sendMsg();
+                            return;
+                        }
+                    }
+                }
+                sendMsg();
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.d(TAG, "onError: ");
+                e.printStackTrace();
+                Log.d(TAG, "onError-thread: "+Thread.currentThread().getName());
+                sendMsg();
+            }
+
+            @Override
+            public void onComplete() {
+
+            }
+        });
+    }
+
+    public static String inputStream2String(InputStream in_st){
+        BufferedReader in = new BufferedReader(new InputStreamReader(in_st));
+        StringBuilder builder = new StringBuilder();
+        String line;
+        try {
+            while ((line = in.readLine()) != null){
+                builder.append(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return builder.toString();
+    }
+
+    private String MD5(String s) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] bytes = md.digest(s.getBytes("utf-8"));
+            return toHex(bytes);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String toHex(byte[] bytes) {
+
+        final char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
+        StringBuilder ret = new StringBuilder(bytes.length * 2);
+        for (int i=0; i<bytes.length; i++) {
+            ret.append(HEX_DIGITS[(bytes[i] >> 4) & 0x0f]);
+            ret.append(HEX_DIGITS[bytes[i] & 0x0f]);
+        }
+        return ret.toString();
     }
 
     private void sendMsg() {
@@ -171,7 +314,13 @@ public class RobotService extends AccessibilityService {
         List<CharSequence> texts = event.getText();
         if (!texts.isEmpty()) {
             for (CharSequence text : texts) {
+//                Log.d(TAG, "handleNotification-text:"+text);
                 String content = text.toString();
+                String[] info = content.split(": ");
+                if(info.length > 1) {
+                    mNotificationUser = info[0];
+                    mNotificationContent = info[1];
+                }
                 //检查信息
                 if(isContainsFilterKeyword(content)){
                     return;
