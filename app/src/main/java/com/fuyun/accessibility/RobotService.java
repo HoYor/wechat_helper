@@ -181,7 +181,7 @@ public class RobotService extends AccessibilityService {
                     for (RobotResponse.ResultsBean resultsBean:s.getResults()) {
                         if(resultsBean.getResultType() != null &&
                                 resultsBean.getResultType().equals("text")){
-                            mSendMsg = resultsBean.getValues().getText();
+                            mSendMsg = resultsBean.getValues().getText()+"【机器人胡荣】";
                             sendMsg();
                             return;
                         }
@@ -361,6 +361,7 @@ public class RobotService extends AccessibilityService {
 
     private boolean isContainsFilterKeyword(String content) {
         for (String keyword:mFilterKeywords) {
+            if(keyword.equals(""))continue;
             if(content.contains(keyword)){
                 return true;
             }
